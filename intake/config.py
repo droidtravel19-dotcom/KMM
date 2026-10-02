@@ -24,3 +24,7 @@ class Settings:
     imap_password: str = field(default_factory=lambda: os.getenv("IMAP_PASSWORD", ""))
     intake_token: str = field(default_factory=lambda: os.getenv("INTAKE_TOKEN", ""))
     db_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "intake.db"))
+    wa_token: str = field(default_factory=lambda: os.getenv("WHATSAPP_TOKEN", ""))
+    wa_phone_number_id: str = field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
+    wa_verify_token: str = field(default_factory=lambda: os.getenv("WHATSAPP_VERIFY_TOKEN", ""))
+    wa_app_secret: str = field(default_factory=lambda: os.getenv("WHATSAPP_APP_SECRET", ""))

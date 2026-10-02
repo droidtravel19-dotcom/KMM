@@ -75,6 +75,8 @@ def test_api(tmp_path, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     from fastapi.testclient import TestClient
     from intake import app as appmod
+    import importlib
+    importlib.reload(appmod)
     c = TestClient(appmod.app)
     body = {"name": "A B", "email": "a@b.com", "message": "unfair dismissal from my employer"}
     assert c.post("/intake", json=body).status_code == 401
@@ -92,3 +94,43 @@ def test_prepare_uses_claude_triage_and_never_sends():
     r = prepare(on, [item()], conn)[0]
     assert r["practice_area"] == "Criminal" and r["reply_status"] == "draft" and "reply_body" in r
     assert prepare(on, [item()], conn)[0]["duplicate"] is True
+
+
+def _wa_payload(*texts, phone="254712345678"):
+    msgs = [{"from": phone, "id": f"wamid.{i}", "type": "text", "text": {"body": t}} for i, t in enumerate(texts)]
+    msgs.append({"from": phone, "id": "wamid.img", "type": "image"})
+    return {"entry": [{"changes": [{"value": {"contacts": [{"wa_id": phone, "profile": {"name": "Peter M"}}], "messages": msgs}}]}]}
+
+
+def test_whatsapp_parse_and_signature():
+    import hashlib, hmac
+    from intake import whatsapp
+    items = whatsapp.parse_payload(_wa_payload("I need help with my plot"))
+    assert len(items) == 1 and items[0][0].phone == "+254712345678" and items[0][0].email is None
+    sig = "sha256=" + hmac.new(b"k", b"body", hashlib.sha256).hexdigest()
+    assert whatsapp.verify_signature("k", b"body", sig)
+    assert not whatsapp.verify_signature("k", b"body", "sha256=bad") and not whatsapp.verify_signature("", b"body", sig)
+
+
+def test_whatsapp_webhook(tmp_path, monkeypatch):
+    import hashlib, hmac, json
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "w.db"))
+    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "vt")
+    monkeypatch.setenv("WHATSAPP_APP_SECRET", "sec")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.delenv("SEND_REPLIES", raising=False)
+    from fastapi.testclient import TestClient
+    from intake import app as appmod
+    import importlib
+    importlib.reload(appmod)
+    c = TestClient(appmod.app)
+    assert c.get("/whatsapp/webhook", params={"hub.mode": "subscribe", "hub.verify_token": "vt", "hub.challenge": "42"}).text == "42"
+    assert c.get("/whatsapp/webhook", params={"hub.mode": "subscribe", "hub.verify_token": "x", "hub.challenge": "42"}).status_code == 403
+    raw = json.dumps(_wa_payload("my land title dispute", "please call me")).encode()
+    sig = "sha256=" + hmac.new(b"sec", raw, hashlib.sha256).hexdigest()
+    assert c.post("/whatsapp/webhook", content=raw, headers={"x-hub-signature-256": "sha256=0"}).status_code == 401
+    assert c.post("/whatsapp/webhook", content=raw, headers={"x-hub-signature-256": sig}).json() == {"processed": 2}
+    from intake import db
+    rows = db.list_enquiries(appmod.conn)
+    assert sorted(r["reply_status"] for r in rows) == ["draft", "none"]  # one ack for two messages
+    assert c.post("/whatsapp/webhook", content=raw, headers={"x-hub-signature-256": sig}).json() == {"processed": 0}  # redelivery deduped

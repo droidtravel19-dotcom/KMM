@@ -17,6 +17,14 @@ find new enquiry threads, triage them by practice area, store them via `python -
 `Intake/Urgent` and `Intake/Processed` labels, and draft the digest (`python -m intake.cli digest --mark`).
 No Gmail credentials or app passwords are stored in this repo. To automate it, schedule that prompt in Claude.
 
+## WhatsApp
+Meta's WhatsApp Business Cloud API posts incoming messages to `POST /whatsapp/webhook` (verified by `X-Hub-Signature-256`
+using `WHATSAPP_APP_SECRET`; `GET` handles Meta's verify handshake with `WHATSAPP_VERIFY_TOKEN`). Text messages go through
+the same triage and storage; the client gets the same fixed-template acknowledgement (free-form replies are allowed
+within 24h of their message), at most once per sender per 24h. Like email, replies are drafts only until `SEND_REPLIES=true`.
+Needs a Meta Business account, a WhatsApp Business number, a public HTTPS URL, and the four `WHATSAPP_*` values in `.env.example`.
+Voice notes, images and documents are currently ignored. WhatsApp enquiries show in the digest with the phone number and no email.
+
 ## Standalone mode (IMAP/SMTP, no Claude in the loop)
 ```
 pip install -r requirements.txt

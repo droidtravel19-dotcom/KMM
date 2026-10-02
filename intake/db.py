@@ -65,3 +65,11 @@ def mark_digested(conn, ids: list[int]):
 
 def triage_of(row: dict) -> Triage:
     return Triage(**json.loads(row["triage_json"]))
+
+
+def replied_recently(conn, phone: str, hours: int = 24) -> bool:
+    """True if we already acknowledged this phone number within `hours` (avoids a reply per WhatsApp message)."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    return conn.execute("SELECT 1 FROM enquiries WHERE phone=? AND source='whatsapp' AND reply_status IN ('sent','draft')"
+                        " AND received_at>? LIMIT 1", (phone, cutoff)).fetchone() is not None

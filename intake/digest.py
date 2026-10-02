@@ -21,7 +21,7 @@ def build_digest(rows: list[dict]) -> str:
         for r in sorted(items, key=lambda r: r["urgency"] != "high"):
             t = db.triage_of(r)
             flag = "[URGENT] " if r["urgency"] == "high" else ""
-            out.append(f"#{r['id']} {flag}{r['name']} <{r['email']}> {r['phone']}".rstrip())
+            out.append(f"#{r['id']} {flag}{r['name']} {('<' + r['email'] + '>') if r['email'] else ''} {r['phone']}".strip())
             out.append(f"  {t.summary}")
             if t.key_facts:
                 out.append("  Facts: " + "; ".join(t.key_facts))

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class PracticeArea(str, Enum):
@@ -22,11 +22,17 @@ class Urgency(str, Enum):
 
 class EnquiryIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    email: EmailStr
+    email: EmailStr | None = None
     phone: str = Field(default="", max_length=50)
     subject: str = Field(default="", max_length=300)
     message: str = Field(min_length=1, max_length=20000)
     source: str = "web"
+
+    @model_validator(mode="after")
+    def _need_contact(self):
+        if not self.email and not self.phone:
+            raise ValueError("email or phone required")
+        return self
 
 
 class Triage(BaseModel):
