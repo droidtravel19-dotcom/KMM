@@ -1,10 +1,11 @@
 from . import db, replies, triage as triage_mod
 from .config import Settings
-from .models import EnquiryIn
+from .models import EnquiryIn, Triage
 
 
-def process(conn, s: Settings, e: EnquiryIn, message_id: str | None = None, client=None, sender=None) -> dict | None:
-    t = triage_mod.triage(e, s, client=client)
+def process(conn, s: Settings, e: EnquiryIn, message_id: str | None = None, client=None, sender=None,
+            preset: Triage | None = None) -> dict | None:
+    t = preset or triage_mod.triage(e, s, client=client)
     eid = db.save(conn, e, t, message_id)
     if eid is None:
         return None
@@ -12,5 +13,5 @@ def process(conn, s: Settings, e: EnquiryIn, message_id: str | None = None, clie
     kw = {"sender": sender} if sender else {}
     status = replies.dispatch(s, e.email, subject, body, **kw)
     db.set_reply(conn, eid, status, body)
-    return {"id": eid, "practice_area": t.practice_area.value, "urgency": t.urgency.value,
+    return {"id": eid, "reply_subject": subject, "reply_body": body, "practice_area": t.practice_area.value, "urgency": t.urgency.value,
             "summary": t.summary, "reply_status": status}

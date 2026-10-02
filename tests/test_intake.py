@@ -81,3 +81,14 @@ def test_api(tmp_path, monkeypatch):
     r = c.post("/intake", json=body, headers={"x-intake-token": "sekret"})
     assert r.json()["practice_area"] == "Employment & Labour"
     assert c.get("/enquiries", headers={"x-intake-token": "sekret"}).json()[0]["name"] == "A B"
+
+
+def test_prepare_uses_claude_triage_and_never_sends():
+    from intake.cli import prepare
+    conn = db.connect(":memory:")
+    on = Settings(send_replies=True, anthropic_api_key="")
+    item = lambda: {"name": "Jo K", "email": "jo@x.com", "subject": "help", "message": "m", "thread_id": "T1",
+                    "triage": {"practice_area": "Criminal", "urgency": "high", "summary": "s"}}
+    r = prepare(on, [item()], conn)[0]
+    assert r["practice_area"] == "Criminal" and r["reply_status"] == "draft" and "reply_body" in r
+    assert prepare(on, [item()], conn)[0]["duplicate"] is True

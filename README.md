@@ -9,7 +9,15 @@ inbox ──cli poll (IMAP)──┴─► triage (Claude, keyword fallback) ─
                           fixed-template auto-reply        digest by practice area
 ```
 
-## Run
+## Gmail (connector) mode - recommended
+The Gmail connector is used by Claude, so the inbox work is a runbook: `.claude/skills/gmail-intake/SKILL.md`.
+In a Claude session with the Gmail connector, say **"run intake"**. Claude will:
+find new enquiry threads, triage them by practice area, store them via `python -m intake.cli prepare`,
+**create draft** acknowledgement replies (never sends unless you say so), apply `Intake/<Practice area>`,
+`Intake/Urgent` and `Intake/Processed` labels, and draft the digest (`python -m intake.cli digest --mark`).
+No Gmail credentials or app passwords are stored in this repo. To automate it, schedule that prompt in Claude.
+
+## Standalone mode (IMAP/SMTP, no Claude in the loop)
 ```
 pip install -r requirements.txt
 cp .env.example .env   # fill in, then: set -a; . ./.env; set +a
